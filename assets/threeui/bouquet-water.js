@@ -1,8 +1,9 @@
 /* Adapted from ThreeUI elemental-water SHA-256 7a6871fe99fa. Original bundle in elemental-water.source.json. */
 (()=>{
 /* ---------------- rasterize -> SDF (chamfer) + edge point extraction ---------------- */
-const SDF_SIZE = 768;
-const SDF_SPREAD = 192;          // px each side of the edge
+const MOBILE = matchMedia('(max-width: 800px), (pointer: coarse)').matches;
+const SDF_SIZE = MOBILE ? 384 : 768;
+const SDF_SPREAD = SDF_SIZE / 4; // px each side of the edge
 const D_RANGE = SDF_SPREAD * 2 / SDF_SIZE; // decoded sdf span in mask-uv units
 
 function rasterizeLogo(pathStr) {
@@ -291,9 +292,9 @@ function program(gl, vertSrc, fragSrc) {
   return p;
 }
 
-const DPR = Math.min(window.devicePixelRatio || 1, 1.75);
+const DPR = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.25 : 1.75);
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const SIM_RES = 512;
+const SIM_RES = MOBILE ? 256 : 512;
 
 class Panel {
   constructor(el, fragSrc, logo, opts) {
@@ -534,7 +535,7 @@ const canvas = document.createElement('canvas');
 canvas.className = 'bouquet-water';canvas.setAttribute('aria-hidden','true');host.append(canvas);
 const mask = rasterizeLogo('M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2');
 const panel = new Panel(host, FRAG_WATER, {sdf:buildSDF(mask),edges:edgePoints(mask)}, {
- sim:true,zoom:1.56,shift:[0,0],particles:{count:160,travel:0.10,lifeMin:4,lifeMax:8,alongNormal:0.15,wiggle:0.02,sizeMin:1.5,sizeMax:3.5,sparse:0.5,colA:[0.10,0.24,0.30],colB:[0.22,0.40,0.48]}
+ sim:true,zoom:1.56,shift:[0,0],particles:{count:MOBILE?72:160,travel:0.10,lifeMin:4,lifeMax:8,alongNormal:0.15,wiggle:0.02,sizeMin:1.5,sizeMax:3.5,sparse:0.5,colA:[0.10,0.24,0.30],colB:[0.22,0.40,0.48]}
 });
 if (!panel.ok) return;
 const gl=panel.gl,reduced=matchMedia('(prefers-reduced-motion: reduce)'),toggle=document.querySelector('.motion-toggle');
@@ -549,7 +550,7 @@ function updatePhoto(){
  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
  panel.photoAspect=photo.naturalWidth/photo.naturalHeight;panel.draw(elapsed);host.classList.add('water-ready');sync();
 }
-function tick(now){frame=0;if(paused()||!panel.photoTex)return;elapsed+=Math.min((now-last)/1000,0.05);last=now;panel.draw(elapsed);frame=requestAnimationFrame(tick);}
+function tick(now){frame=0;if(paused()||!panel.photoTex)return;const delta=now-last;if(MOBILE&&delta<1000/30){frame=requestAnimationFrame(tick);return;}elapsed+=Math.min(delta/1000,0.05);last=now;panel.draw(elapsed);frame=requestAnimationFrame(tick);}
 function sync(){cancelAnimationFrame(frame);frame=0;host.classList.toggle('water-paused',reduced.matches||lost);panel.dropQueue.length=0;if(!paused()&&panel.photoTex){last=performance.now();frame=requestAnimationFrame(tick);}}
 photo.addEventListener('load',updatePhoto);
 new MutationObserver(()=>{host.classList.remove('water-ready');updatePhoto();}).observe(photo,{attributes:true,attributeFilter:['src']});
